@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AV — Nuremberg north-east ODD overlays</title>
+<style>
+  html, body { margin:0; padding:0; height:100%; font-family:Inter,Arial,Helvetica,sans-serif; }
+  #map { position:absolute; inset:0; background:#222; }
+  .panel {
+    position:absolute; top:12px; right:12px; z-index:1000;
+    background:rgba(255,255,255,0.96); border-radius:8px; padding:14px 16px; width:272px;
+    font-size:13px; color:#16404F; box-shadow:0 2px 10px rgba(0,0,0,0.28);
+    max-height:calc(100% - 24px); overflow-y:auto;
+  }
+  .panel h1 { font-size:15px; margin:0 0 2px; color:#16404F; font-weight:700; }
+  .panel .sub { font-size:11px; color:#5F6B70; margin:0 0 12px; line-height:1.45; }
+  .row { display:flex; align-items:center; gap:8px; margin-bottom:7px; cursor:pointer; }
+  .row input { margin:0; cursor:pointer; }
+  .sw { width:18px; height:12px; border-radius:2px; flex:none; }
+  .row label { cursor:pointer; flex:1; }
+  .hd { font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:#5F6B70;
+        margin:14px 0 7px; font-weight:700; }
+  .note { font-size:11px; color:#5F6B70; line-height:1.5; margin-top:14px;
+          border-top:1px solid #DDE3E6; padding-top:10px; }
+  .lbl { font-size:11px; font-weight:700; color:#fff; text-shadow:0 0 3px #000,0 0 5px #000;
+         white-space:nowrap; }
+  #boot { position:absolute; inset:0; z-index:900; display:flex; align-items:center;
+          justify-content:center; background:#0F262E; color:#fff; font-size:14px;
+          text-align:center; padding:40px; line-height:1.7; }
+  #boot .inner { max-width:640px; }
+  #boot b { display:block; font-size:19px; margin-bottom:12px; }
+  #boot code { background:rgba(255,255,255,.14); padding:2px 6px; border-radius:3px; }
+  #boot ol { text-align:left; margin:18px auto 0; max-width:540px; }
+  #boot li { margin-bottom:8px; }
+  #tilewarn { position:absolute; bottom:14px; left:14px; z-index:1000; display:none;
+    background:rgba(163,45,45,.94); color:#fff; padding:10px 14px; border-radius:6px;
+    font-size:12px; max-width:380px; line-height:1.5; }
+</style>
+</head>
+<body>
+
+<div id="boot"><div class="inner"><b>Loading map library…</b>If this stays on screen, the mapping library could not be downloaded.</div></div>
+<div id="map"></div>
+<div id="tilewarn"></div>
+
+<div class="panel">
+  <h1>Nuremberg north-east</h1>
+  <p class="sub">AV proposed operating domains, on Esri satellite imagery. Drawn to serve the orbital gap between the U2 and the S-Bahn.</p>
+
+  <div class="hd">Operating domains</div>
+  <div class="row"><input type="checkbox" id="c1" checked><span class="sw" style="background:#FF7A45"></span><label for="c1">ODD-1 corridor · ~11 km²</label></div>
+  <div class="row"><input type="checkbox" id="c2" checked><span class="sw" style="background:#FFC24D"></span><label for="c2">ODD-2 zone · ~27 km²</label></div>
+  <div class="row"><input type="checkbox" id="c3" checked><span class="sw" style="background:#B9A7FF"></span><label for="c3">ODD-3 option · ~73 km²</label></div>
+
+  <div class="hd">Reference</div>
+  <div class="row"><input type="checkbox" id="c4" checked><span class="sw" style="background:#4DE0A8"></span><label for="c4">Anchors and interchanges</label></div>
+  <div class="row"><input type="checkbox" id="c5"><span class="sw" style="background:#888780"></span><label for="c5">Excluded: U3 north-west branch</label></div>
+
+  <div class="hd">Basemap</div>
+  <div class="row"><input type="radio" name="bm" id="b1" checked><label for="b1">Satellite</label></div>
+  <div class="row"><input type="radio" name="bm" id="b2"><label for="b2">Satellite + labels</label></div>
+  <div class="row"><input type="radio" name="bm" id="b3"><label for="b3">Street</label></div>
+
+  <p class="note">Marker positions are surveyed coordinates. Boundaries and the corridor alignment are indicative; the boundary that would be filed is a road-centreline definition and will differ.</p>
+</div>
+
+<script>
+var CSS=['https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css','https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css','https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'];
+var JS=['https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js','https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js','https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'];
+function fail(){document.getElementById('boot').innerHTML='<div class="inner"><b>Could not load the mapping library</b>Every CDN attempt was blocked. This is almost always one of two things:<ol><li><b>You are viewing this in a preview pane.</b> Download the file and open it directly in Chrome, Firefox or Safari.</li><li><b>Your network blocks CDN domains.</b> Use the accompanying <code>.geojson</code> at <code>geojson.io</code> or in Google Earth Pro instead \u2014 identical geometry, no dependencies.</li></ol></div>';}
+function loadCSS(l,i){if(i>=l.length)return;var e=document.createElement('link');e.rel='stylesheet';e.href=l[i];e.onerror=function(){loadCSS(l,i+1);};document.head.appendChild(e);}
+function loadJS(l,i,ok,no){if(i>=l.length){no();return;}var s=document.createElement('script');s.src=l[i];s.onload=function(){window.L?ok():loadJS(l,i+1,ok,no);};s.onerror=function(){loadJS(l,i+1,ok,no);};document.head.appendChild(s);}
+loadCSS(CSS,0); loadJS(JS,0,init,fail);
+setTimeout(function(){if(!window.L)fail();},12000);
+
+function init(){
+  document.getElementById('boot').style.display='none';
+  var map=L.map('map',{center:[49.4700,11.1250],zoom:12});
+
+  var errs=0;
+  function watch(l){ l.on('tileerror',function(){ if(++errs===4){ var w=document.getElementById('tilewarn');
+    w.style.display='block'; w.innerHTML='Satellite tiles are blocked on this network. The overlays are correct \u2014 only the imagery is missing. Try the <b>Street</b> basemap.'; } }); }
+
+  var sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    {maxZoom:19,attribution:'Imagery: Esri, Maxar, Earthstar Geographics'});
+  var labels=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',{maxZoom:19});
+  var street=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'\u00a9 OpenStreetMap contributors'});
+  watch(sat); watch(street); sat.addTo(map);
+  L.control.scale({imperial:false,position:'bottomleft'}).addTo(map);
+
+  function box(s,w,n,e){return [[s,w],[n,e]];}
+  var B1=box(49.4560,11.1020,49.4890,11.1420),
+      B2=box(49.4540,11.1020,49.5060,11.1660),
+      B3=box(49.4340,11.0650,49.5085,11.1880);
+
+  var odd3=L.rectangle(B3,{color:'#B9A7FF',weight:2,dashArray:'9 6',fillColor:'#B9A7FF',fillOpacity:0.10})
+    .addTo(map).bindPopup('<b>ODD-3 \u2014 expansion option</b><br>Southern and eastern city plus the core, ~73 km\u00b2<br>Contracted option, 2030+<br><i>The only domain containing the Altstadt and Hauptbahnhof \u2014 where trip density, night-economy and airport demand concentrate</i>');
+
+  var odd2=L.rectangle(B2,{color:'#FFC24D',weight:2.5,dashArray:'7 5',fillColor:'#FFC24D',fillOpacity:0.14})
+    .addTo(map).bindPopup('<b>ODD-2 \u2014 demand-responsive zone</b><br>North-east quadrant, ~27 km\u00b2, ~50,000 residents<br>Opens 2029 on driverless approval<br>Erlenstegen, Buchenb\u00fchl, Marienberg and the Ziegelstein hinterland \u2014 low density, high car ownership, thin rail coverage');
+
+  var odd1area=L.rectangle(B1,{color:'#FF7A45',weight:1.5,dashArray:'5 4',fillColor:'#FF7A45',fillOpacity:0.12});
+  var corridor=L.polyline([[49.4856588,11.1049085],[49.4739513,11.1362907],[49.4590232,11.1321206]],
+    {color:'#FF7A45',weight:6,opacity:.96,lineCap:'round',lineJoin:'round'})
+    .bindPopup('<b>ODD-1 corridor</b><br>Ziegelstein (U2) \u2192 Erlenstegen \u2192 M\u00f6geldorf (S-Bahn and tram)<br>~5.4 km, 7 stops, supervised 2027\u201328<br>An <b>orbital</b> link connecting two radial lines through a district neither serves<br><i>Alignment indicative pending road survey</i>');
+  var odd1=L.layerGroup([odd1area,corridor]).addTo(map);
+
+  var anchors=[
+    [49.4856588,11.1049085,'Ziegelstein','U2 station \u2014 ODD-1 northern anchor and zone feeder point','#4DE0A8'],
+    [49.4739513,11.1362907,'Erlenstegen','Affluent low-density villa district, bus service only. The corridor\u2019s reason for existing','#FF7A45'],
+    [49.4590232,11.1321206,'M\u00f6geldorf','S-Bahn plus tram lines 5 and 11 \u2014 ODD-1 southern anchor. The corridor links two rail networks','#4DE0A8'],
+    [49.5019203,11.1134309,'Buchenb\u00fchl','Northern zone edge. Forest-edge settlement, bus only','#FFC24D'],
+    [49.4662671,11.1626241,'Laufamholz','S-Bahn station on the eastern boundary \u2014 second zone feeder point','#4DE0A8'],
+    [49.4939629,11.0786260,'N\u00fcrnberg Flughafen','U2 terminus. Inside ODD-3 \u2014 airport traffic is high-yield, time-sensitive demand','#B9A7FF'],
+    [49.4455822,11.0825317,'Hauptbahnhof','Inside ODD-3 only. Highest trip density in the city','#B9A7FF'],
+    [49.4539848,11.0777685,'Altstadt / Hauptmarkt','Inside ODD-3 only. Lowest car ownership, strongest evening demand','#B9A7FF']
+  ];
+  var anchorLayer=L.layerGroup();
+  anchors.forEach(function(a){
+    L.circleMarker([a[0],a[1]],{radius:7,color:'#fff',weight:2,fillColor:a[4],fillOpacity:1})
+      .bindPopup('<b>'+a[2]+'</b><br>'+a[3]+'<br><code>'+a[0].toFixed(5)+', '+a[1].toFixed(5)+'</code>')
+      .addTo(anchorLayer);
+    L.marker([a[0],a[1]],{icon:L.divIcon({className:'',html:'<span class="lbl">'+a[2]+'</span>',iconAnchor:[-11,8]})}).addTo(anchorLayer);
+  });
+  anchorLayer.addTo(map);
+
+  var excluded=L.layerGroup([
+    L.polyline([[49.4654752,11.0540833],[49.4628397,11.0613682]],{color:'#888780',weight:5,dashArray:'10 6',opacity:.9})
+      .bindPopup('<b>U3 north-west branch \u2014 deliberately excluded</b><br>Klinikum Nord has been directly rail-served since 2017. An AV service here would compete with the network rather than feed it, and would lose the transport department.'),
+    L.circleMarker([49.4628397,11.0613682],{radius:6,color:'#fff',weight:2,fillColor:'#888780',fillOpacity:1})
+      .bindPopup('<b>Klinikum N\u00fcrnberg Nord</b><br>Rail-served since 2017 \u2014 outside all three domains'),
+    L.circleMarker([49.4654752,11.0540833],{radius:6,color:'#fff',weight:2,fillColor:'#888780',fillOpacity:1})
+      .bindPopup('<b>Nordwestring</b><br>U3 north-west terminus \u2014 outside all three domains')
+  ]);
+
+  function bind(id,layer){ document.getElementById(id).addEventListener('change',function(e){
+    e.target.checked?map.addLayer(layer):map.removeLayer(layer); }); }
+  bind('c1',odd1); bind('c2',odd2); bind('c3',odd3); bind('c4',anchorLayer); bind('c5',excluded);
+
+  function basemap(w){ [sat,labels,street].forEach(function(l){ if(map.hasLayer(l))map.removeLayer(l); });
+    if(w==='street'){street.addTo(map);} else { sat.addTo(map); if(w==='labels')labels.addTo(map); } }
+  document.getElementById('b1').addEventListener('change',function(){basemap('sat');});
+  document.getElementById('b2').addEventListener('change',function(){basemap('labels');});
+  document.getElementById('b3').addEventListener('change',function(){basemap('street');});
+
+  map.fitBounds(L.latLngBounds([49.4300,11.0600],[49.5120,11.1930]),{padding:[40,40]});
+  setTimeout(function(){map.invalidateSize();},200);
+}
+</script>
+</body>
+</html>
